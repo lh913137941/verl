@@ -219,6 +219,33 @@ class FullyAsyncTaskRunner:
             print("[ASYNC MAIN] Training completed or interrupted")
 
 
+def _resolve_task_runner_class(config):
+    """Keep native Fully Async unless MultiTask is explicitly enabled."""
+    multitask = config.get("multitask")
+    if multitask is None:
+        return FullyAsyncTaskRunner
+
+    enabled = multitask.get("enabled", False)
+    if type(enabled) is not bool:
+        raise ValueError("multitask.enabled must be a boolean")
+    if not enabled:
+        return FullyAsyncTaskRunner
+
+    # The extension package stays optional. Import it only after the explicit
+    # enable switch so an ordinary VERL install keeps the native dependency
+    # graph and startup behavior unchanged.
+    from multi_task_scheduler.integration.verl.runtime_profile import (
+        resolve_runtime_profile,
+    )
+
+    task_runner_class = resolve_runtime_profile(config)
+    if task_runner_class is None:
+        raise RuntimeError(
+            "multitask.enabled=true did not resolve a supported runtime profile"
+        )
+    return task_runner_class
+
+
 @hydra.main(config_path="config", config_name="fully_async_ppo_trainer", version_base=None)
 def main(config):
     from verl.trainer.main_ppo import run_ppo
@@ -235,7 +262,8 @@ def main(config):
     config.actor_rollout_ref.rollout.nnodes = config.rollout.nnodes
     config.actor_rollout_ref.rollout.n_gpus_per_node = config.rollout.n_gpus_per_node
     config = migrate_legacy_reward_impl(config)
-    run_ppo(config, task_runner_class=FullyAsyncTaskRunner)
+    task_runner_class = _resolve_task_runner_class(config)
+    run_ppo(config, task_runner_class=task_runner_class)
     print(f"total time: {time() - start_time:.2f} seconds")
 
 

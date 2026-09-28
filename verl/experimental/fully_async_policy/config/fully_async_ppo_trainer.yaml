@@ -6,6 +6,13 @@ defaults:
   - ppo_trainer
   - _self_
 
+# Optional verl-multitask bridge. The extension package is imported only when
+# enabled=true; runtime.profile alone never activates it.
+multitask:
+  enabled: false
+  runtime:
+    profile: null
+
 async_training:
 
   # Maximum samples staleness threshold
