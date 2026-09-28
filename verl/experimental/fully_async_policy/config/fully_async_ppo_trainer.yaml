@@ -10,6 +10,8 @@ defaults:
 # enabled=true; runtime.profile alone never activates it.
 multitask:
   enabled: false
+  # Bound natural DONATE/REMOVE drain waits; FORCE has its own shorter handoff deadline.
+  drain_timeout_s: 300.0
   runtime:
     profile: null
 
